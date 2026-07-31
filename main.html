@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFM 节点式代码生成器</title>
+    <link rel="stylesheet" href="/style.css">
+
+</head>
+
+<body>
+    <!-- 顶部用户栏 -->
+    <div id="top-bar"
+        style="display: flex; align-items: center; justify-content: space-between; padding: 8px 20px; background: #2d2d2d; color: #fff; border-bottom: 1px solid #444; height: 48px; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-weight: bold; font-size: 16px; color: #ffd700;">SFM 编辑器</span>
+            <span id="save-status" style="font-size: 12px; color: #aaa;">已保存</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button id="btn-export"
+                style="padding: 6px 16px; background: #4caf50; border: none; border-radius: 4px; color: #fff; cursor: pointer;">📤
+                导出工程</button>
+            <button id="btn-import"
+                style="padding: 6px 16px; background: #ff9800; border: none; border-radius: 4px; color: #fff; cursor: pointer;">📥
+                导入工程</button>
+            <button id="btn-new"
+                style="padding: 6px 16px; background: #f44336; border: none; border-radius: 4px; color: #fff; cursor: pointer;">🗑️
+                新建工程</button>
+        </div>
+    </div>
+    <!-- 标签栏 -->
+    <div id="tab-bar">
+        <div id="tabs-container" style="display:flex;flex:1;overflow-x:auto;height:100%;align-items:center;gap:2px;">
+            <!-- 固定主页标签（由HTML直接定义） -->
+            <div id="tab-home" class="tab-item active"
+                style="background:#ffd700;color:#222;border-color:#ffd700;flex-shrink:0;cursor:pointer;">
+                <span>🏠 主页</span>
+            </div>
+        </div>
+    </div>
+    <div id="app-container">
+        <!-- 左侧画布 -->
+        <div id="canvas-wrapper">
+            <canvas id="connection-canvas"></canvas>
+            <!-- 右键菜单 -->
+            <div class="context-menu" id="contextMenu">
+                <div class="menu-item" data-type="base">
+                    <span class="color-dot" style="background:#27ae60;"></span> 输入
+                </div>
+                <div class="menu-item has-sub">
+                    <span class="color-dot" style="background:#f1c40f;"></span> 输入选项 ▶
+                    <div class="sub-menu" data-scope="input">
+                        <div class="menu-item" data-type="num">数量 (含 each)</div>
+                        <div class="menu-item" data-type="resType">资源类型</div>
+                        <div class="menu-item" data-type="resId">资源ID</div>
+                        <div class="menu-item" data-type="retain">保留数量</div>
+                        <div class="menu-item" data-type="side">方向</div>
+                        <div class="menu-item" data-type="slots">槽位 (含 empty)</div>
+                    </div>
+                </div>
+                <div class="menu-item" data-type="condition">
+                    <span class="color-dot" style="background:#8e44ad;"></span> 条件
+                </div>
+                <div class="menu-item has-sub">
+                    <span class="color-dot" style="background:#3498db;"></span> 输出选项 ▶
+                    <div class="sub-menu" data-scope="output">
+                        <div class="menu-item" data-type="num">数量 (含 each)</div>
+                        <div class="menu-item" data-type="resType">资源类型</div>
+                        <div class="menu-item" data-type="resId">资源ID</div>
+                        <div class="menu-item" data-type="retain">保留数量</div>
+                        <div class="menu-item" data-type="side">方向</div>
+                        <div class="menu-item" data-type="slots">槽位</div>
+                    </div>
+                </div>
+                <div class="menu-item" data-type="output">
+                    <span class="color-dot" style="background:#e74c3c;"></span> 输出
+                </div>
+                <div class="menu-item" data-type="hub">
+                    <span class="color-dot" style="background:#95a5a6;"></span> 集线器
+                </div>
+            </div>
+            <!-- 物品选择覆盖层 -->
+            <div class="cover" id="itemPicker">
+                <div class="cover-content">
+                    <div class="search">
+                        <input type="text" placeholder="搜索物品..." id="searchInput" oninput="filterItems(this.value)">
+                    </div>
+                    <div class="cards" id="itemList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分隔条 -->
+        <div id="splitter"></div>
+
+        <!-- 右侧面板 -->
+        <div id="right-panel">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="code">📄 代码</button>
+                <button class="tab-btn" data-tab="labels">🏷️ 标签管理</button>
+            </div>
+            <div class="tab-content active" id="tab-code">
+                <textarea id="code-output" spellcheck="false" readonly></textarea>
+                <div class="btn-group">
+                    <button class="primary" onclick="generateCode()">▶ 生成代码</button>
+                    <button onclick="copyCode()">📋 复制</button>
+                    <button onclick="clearAll()">🗑️ 清空</button>
+                    <!-- ★★★ 新增调试按钮 ★★★ -->
+                    <button class="debug" onclick="exportDebugJSON()">🔍 导出调试JSON</button>
+                </div>
+            </div>
+            <div class="tab-content" id="tab-labels">
+                <div id="label-manager"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 按顺序加载所有脚本（新文件名）
+        const scriptFiles = [
+            '01-splitter.js',
+            '02-labels.js',
+            '03-data.js',
+            '04-node-class.js',
+            '05-node-manager.js',
+            '06-connections.js',
+            '07-context-menu.js',
+            '08-item-picker.js',
+            '09-code-gen.js',
+            '10-export-debug.js',
+            '11-copy-code.js',
+            '12-tabs.js',
+            '13-init.js',
+            '14-save-load.js',
+            '15-projects.js',
+            '16-home.js'
+        ];
+        let index = 0;
+
+        function loadNext() {
+            if (index >= scriptFiles.length) {
+                console.log('✅ 所有脚本加载完成');
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = './scripts/' + scriptFiles[index];
+            script.onload = function () {
+                console.log(`✅ 加载成功: ${scriptFiles[index]}`);
+                index++;
+                loadNext();
+            };
+            script.onerror = function () {
+                console.error(`❌ 加载失败: ${scriptFiles[index]}`);
+                // 继续尝试下一个（可选）
+                index++;
+                loadNext();
+            };
+            document.body.appendChild(script);
+        }
+
+        loadNext();
+    </script>
+</body>
+
+</html>
