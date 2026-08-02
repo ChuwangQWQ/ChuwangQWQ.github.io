@@ -164,8 +164,9 @@
                 nodeIdCounter = maxId + 1;
 
                 data.connections.forEach(connData => {
-                    const fromNode = idMap[connData.fromNodeId];
-                    const toNode = idMap[connData.toNodeId];
+
+                    const fromNode = idMap[String(connData.fromNodeId)]; // ★
+                    const toNode = idMap[String(connData.toNodeId)];     // ★
                     if (fromNode && toNode) {
                         const exists = connections.some(c => c.fromNodeId === fromNode.id && c.toNodeId === toNode.id);
                         if (!exists) {

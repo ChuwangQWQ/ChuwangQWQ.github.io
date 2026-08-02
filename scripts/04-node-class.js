@@ -1,9 +1,9 @@
 // ============================================================
-//  4. 节点类（恢复 num 的 each，移除 base/output 的 each）
+//  4. 节点类（集线器固定1个输入端口，无设置项）
 // ============================================================
 class Node {
     constructor(type, x, y, scope = 'input') {
-        this.id = nodeIdCounter++;
+        this.id = generateUUID();
         this.type = type;
         this.ioScope = scope;
         this.x = x || 100;
@@ -11,7 +11,7 @@ class Node {
         this.width = 180;
         this.height = 150;
         this.settings = this.defaultSettings();
-        this.ports = { input: null, output: null };
+        this.ports = { input: null, output: null, inputs: [] };
         this.element = null;
         this._idBtn = null;
         this._controlRefs = {};
@@ -31,7 +31,7 @@ class Node {
             case 'slots': return { slots: '0', empty: false };
             case 'condition': return { leftLabel: window.labels[0] || '', compare: '>=', rightType: 'number', rightNumber: 10, rightLabel: window.labels[0] || '' };
             case 'output': return { ...base };
-            case 'hub': return { };
+            case 'hub': return {}; // 无设置项
             default: return base;
         }
     }
@@ -86,27 +86,57 @@ class Node {
         body.appendChild(content);
         el.appendChild(body);
 
-        if (this.type !== 'output') {
-            const outputPort = document.createElement('div');
-            outputPort.className = 'port output';
-            outputPort.dataset.nodeId = this.id;
-            outputPort.dataset.portType = 'output';
-            el.appendChild(outputPort);
-            this.ports.output = outputPort;
-        }
-        if (this.type !== 'base') {
+        // 集线器特殊处理：固定1个输入端口
+        if (this.type === 'hub') {
+            this.ports.inputs = [];
+            // 固定1个输入端口
             const inputPort = document.createElement('div');
             inputPort.className = 'port input';
             inputPort.dataset.nodeId = this.id;
             inputPort.dataset.portType = 'input';
+            inputPort.dataset.portIndex = 0;
+            inputPort.style.top = '50%';
+            inputPort.style.transform = 'translateY(-50%)';
+            inputPort.style.left = '-7px';
             el.appendChild(inputPort);
-            this.ports.input = inputPort;
+            this.ports.inputs.push(inputPort);
+            this.bindPortEventsForPort(inputPort);
+
+            // 输出端口
+            const outputPort = document.createElement('div');
+            outputPort.className = 'port output';
+            outputPort.dataset.nodeId = this.id;
+            outputPort.dataset.portType = 'output';
+            outputPort.style.top = '50%';
+            outputPort.style.transform = 'translateY(-50%)';
+            el.appendChild(outputPort);
+            this.ports.output = outputPort;
+            this.bindPortEventsForPort(outputPort);
+        } else {
+            // 普通节点
+            if (this.type !== 'output') {
+                const outputPort = document.createElement('div');
+                outputPort.className = 'port output';
+                outputPort.dataset.nodeId = this.id;
+                outputPort.dataset.portType = 'output';
+                el.appendChild(outputPort);
+                this.ports.output = outputPort;
+                this.bindPortEventsForPort(outputPort);
+            }
+            if (this.type !== 'base') {
+                const inputPort = document.createElement('div');
+                inputPort.className = 'port input';
+                inputPort.dataset.nodeId = this.id;
+                inputPort.dataset.portType = 'input';
+                el.appendChild(inputPort);
+                this.ports.input = inputPort;
+                this.bindPortEventsForPort(inputPort);
+            }
         }
 
         document.getElementById('canvas-wrapper').appendChild(el);
         this.element = el;
 
-        this.bindPortEvents();
         this.enableDrag(header);
 
         el.addEventListener('mousedown', (e) => {
@@ -116,8 +146,14 @@ class Node {
     }
 
     buildSettings(container) {
+        // ★ 集线器无任何设置项
+        if (this.type === 'hub') {
+            return;
+        }
+
         const s = this.settings;
-        // base 和 output 只显示标签（无 each）
+
+        // 标签（base, output）
         if (this.type === 'base' || this.type === 'output') {
             const labelWrap = document.createElement('div');
             labelWrap.className = 'setting-item';
@@ -137,35 +173,34 @@ class Node {
             this._controlRefs.labelSelect = select;
         }
 
+        // base 节点的 tick
         if (this.type === 'base') {
             const tickWrap = this.addSetting(container, 'Tick', 'tick', 'number', s.tick, (v) => { s.tick = Number(v); generateCode(); });
             this._controlRefs.tickInput = tickWrap.querySelector('input');
             return;
         }
-        if (this.type === 'output') return;
-        if (this.type === 'hub') return;
 
+        // 其他节点的设置
         switch (this.type) {
             case 'num':
                 const numWrap = this.addSetting(container, '数量', 'number', 'number', s.number, (v) => { s.number = Number(v); generateCode(); });
                 this._controlRefs.numInput = numWrap.querySelector('input');
-                // 恢复 each 复选框
                 const eachWrap = document.createElement('div');
                 eachWrap.className = 'setting-item checkbox-row';
-                const eachLbl = document.createElement('label');
-                eachLbl.textContent = 'Each (在数量后加 each)';
-                const eachChk = document.createElement('input');
-                eachChk.type = 'checkbox';
-                eachChk.checked = s.each || false;
-                eachChk.onchange = () => {
-                    s.each = eachChk.checked;
+                const lbl = document.createElement('label');
+                lbl.textContent = 'Each';
+                const chk = document.createElement('input');
+                chk.type = 'checkbox';
+                chk.checked = s.each;
+                chk.onchange = () => {
+                    s.each = chk.checked;
                     generateCode();
                     if (window.markDirty) window.markDirty();
                 };
-                eachWrap.appendChild(eachLbl);
-                eachWrap.appendChild(eachChk);
+                eachWrap.appendChild(lbl);
+                eachWrap.appendChild(chk);
                 container.appendChild(eachWrap);
-                this._controlRefs.eachCheck = eachChk;
+                this._controlRefs.eachCheck = chk;
                 break;
             case 'resType':
                 const typeSel = this.addSelect(container, '资源类型', ['item', 'fluid', 'energy', 'gas'], s.resourceType, (v) => { s.resourceType = v; generateCode(); });
@@ -218,7 +253,7 @@ class Node {
                 this._controlRefs.emptyCheck = echk;
                 break;
             case 'condition':
-                // ... 条件节点不变
+                // 左操作数标签
                 const leftWrap = document.createElement('div');
                 leftWrap.className = 'setting-item';
                 const leftLbl = document.createElement('label');
@@ -239,6 +274,7 @@ class Node {
                 const compSel = this.addSelect(container, '比较符', ['>=', '<=', '>', '<', '==', '!='], s.compare, (v) => { s.compare = v; generateCode(); });
                 this._controlRefs.compareSelect = compSel;
 
+                // 右操作数
                 const rightWrap = document.createElement('div');
                 rightWrap.className = 'setting-item';
                 const rightLbl = document.createElement('label');
@@ -281,6 +317,8 @@ class Node {
                 this._controlRefs.rightTypeSelect = typeSel2;
                 this._controlRefs.rightNumberInput = rightNumberInput;
                 this._controlRefs.rightLabelSelect = rightLabelSelect;
+                break;
+            default:
                 break;
         }
     }
@@ -325,17 +363,17 @@ class Node {
 
     updateUI() {
         const s = this.settings;
+        // 集线器无设置项，无需更新
+        if (this.type === 'hub') return;
         if (this._controlRefs.labelSelect) {
             this._controlRefs.labelSelect.value = s.label;
-        }
-        if (this._controlRefs.eachCheck) {
-            this._controlRefs.eachCheck.checked = s.each || false;
         }
         if (this.type === 'base' && this._controlRefs.tickInput) {
             this._controlRefs.tickInput.value = s.tick;
         }
         if (this.type === 'num') {
             if (this._controlRefs.numInput) this._controlRefs.numInput.value = s.number;
+            if (this._controlRefs.eachCheck) this._controlRefs.eachCheck.checked = s.each;
         }
         if (this.type === 'resType' && this._controlRefs.resTypeSelect) {
             this._controlRefs.resTypeSelect.value = s.resourceType;
@@ -366,20 +404,17 @@ class Node {
         }
     }
 
-    bindPortEvents() {
-        const ports = [this.ports.input, this.ports.output];
-        ports.forEach(port => {
-            if (!port) return;
-            port.addEventListener('mousedown', (e) => {
-                e.stopPropagation();
-                const type = port.dataset.portType;
-                const nodeId = this.id;
-                if (type === 'output') {
-                    startConnection(nodeId, 'output', e.clientX, e.clientY);
-                } else if (type === 'input') {
-                    finishConnection(nodeId, 'input');
-                }
-            });
+    bindPortEventsForPort(port) {
+        if (!port) return;
+        port.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            const type = port.dataset.portType;
+            const nodeId = this.id;
+            if (type === 'output') {
+                startConnection(nodeId, 'output', e.clientX, e.clientY);
+            } else if (type === 'input') {
+                finishConnection(nodeId, 'input');
+            }
         });
     }
 
@@ -437,4 +472,7 @@ class Node {
         generateCode();
         if (window.markDirty) window.markDirty();
     }
+
+    // 集线器不需要重建端口（固定1个）
+    rebuildPorts() {}
 }

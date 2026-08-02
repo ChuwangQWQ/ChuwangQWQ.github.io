@@ -31,22 +31,18 @@ window.onload = async function () {
 // ---------- 从数据恢复工程 ----------
 function restoreProjectData(data) {
     console.log('🔄 开始恢复工程数据...');
-    // 清空当前工程（直接使用全局 nodes, connections）
     if (window.clearAll) {
         window.clearAll();
     } else {
-        // 直接访问全局变量
         nodes.forEach(n => n.element && n.element.remove());
         nodes = [];
         connections = [];
     }
-    nodeIdCounter = 1;  // 全局变量
+    nodeIdCounter = 1;
 
-    // 恢复标签
     window.labels = data.labels;
     console.log('🏷️ 恢复标签:', window.labels);
 
-    // 重建节点
     const idMap = {};
     const createNode = window.createNode || window._createNode;
     if (!createNode) {
@@ -57,7 +53,7 @@ function restoreProjectData(data) {
     console.log(`📌 开始重建 ${data.nodes.length} 个节点...`);
     data.nodes.forEach(nodeData => {
         const node = createNode(nodeData.type, nodeData.x, nodeData.y, nodeData.ioScope);
-        node.id = nodeData.id;
+        node.id = String(nodeData.id);  // ★ 强制转为字符串
         for (let key in nodeData.settings) {
             node.settings[key] = nodeData.settings[key];
         }
@@ -70,11 +66,11 @@ function restoreProjectData(data) {
     nodeIdCounter = maxId + 1;
     console.log(`🔢 最大节点ID: ${maxId}, 新ID计数器: ${nodeIdCounter}`);
 
-    // 重建连接
     console.log(`🔗 开始重建 ${data.connections.length} 条连接...`);
     data.connections.forEach(connData => {
-        const fromNode = idMap[connData.fromNodeId];
-        const toNode = idMap[connData.toNodeId];
+        // ★ 强制转换为字符串
+        const fromNode = idMap[String(connData.fromNodeId)];
+        const toNode = idMap[String(connData.toNodeId)];
         if (fromNode && toNode) {
             const exists = connections.some(c => c.fromNodeId === fromNode.id && c.toNodeId === toNode.id);
             if (!exists) {
@@ -88,7 +84,6 @@ function restoreProjectData(data) {
         }
     });
 
-    // 刷新界面
     console.log('🔄 刷新界面...');
     if (window.updateConnections) window.updateConnections();
     if (window.generateCode) window.generateCode();

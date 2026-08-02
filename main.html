@@ -32,7 +32,7 @@
     <!-- 标签栏 -->
     <div id="tab-bar">
         <div id="tabs-container" style="display:flex;flex:1;overflow-x:auto;height:100%;align-items:center;gap:2px;">
-            <!-- 固定主页标签（由HTML直接定义） -->
+            <!-- 固定主页标签 -->
             <div id="tab-home" class="tab-item active"
                 style="background:#ffd700;color:#222;border-color:#ffd700;flex-shrink:0;cursor:pointer;">
                 <span>🏠 主页</span>
@@ -106,7 +106,7 @@
                     <button class="primary" onclick="generateCode()">▶ 生成代码</button>
                     <button onclick="copyCode()">📋 复制</button>
                     <button onclick="clearAll()">🗑️ 清空</button>
-                    <!-- ★★★ 新增调试按钮 ★★★ -->
+                    <!-- 调试按钮 -->
                     <button class="debug" onclick="exportDebugJSON()">🔍 导出调试JSON</button>
                 </div>
             </div>
@@ -117,7 +117,7 @@
     </div>
 
     <script>
-        // 按顺序加载所有脚本（新文件名）
+        // 按顺序加载所有脚本
         const scriptFiles = [
             '01-splitter.js',
             '02-labels.js',
@@ -134,7 +134,8 @@
             '13-init.js',
             '14-save-load.js',
             '15-projects.js',
-            '16-home.js'
+            '16-home.js',
+            '17-pan.js'
         ];
         let index = 0;
 
@@ -152,7 +153,6 @@
             };
             script.onerror = function () {
                 console.error(`❌ 加载失败: ${scriptFiles[index]}`);
-                // 继续尝试下一个（可选）
                 index++;
                 loadNext();
             };

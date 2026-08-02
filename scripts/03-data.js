@@ -3,11 +3,16 @@
 // ============================================================
 let nodes = [];
 let connections = [];
-let nodeIdCounter = 1;
+let nodeIdCounter = 1;   // 保留用于旧数据兼容
 let selectedNodeId = null;
 let tempLine = null;
 
 function getNode(id) { return nodes.find(n => n.id === id); }
+
+// 生成短 UUID（8位十六进制）
+function generateUUID() {
+    return Math.random().toString(16).substring(2, 10);
+}
 
 const COLORS = {
     base: '#27ae60',
@@ -25,7 +30,7 @@ const COLORS = {
     slots_output: '#3498db',
     condition: '#8e44ad',
     output: '#e74c3c',
-    hub: '#95a5a6',        // 新增
+    hub: '#95a5a6',
 };
 
 function getNodeColor(type, scope) {
