@@ -5,13 +5,11 @@
 window.onload = async function () {
     await loadItemData();
 
-    // 优先使用多工程管理器
     if (window.projectManager && typeof window.projectManager.init === 'function') {
         window.projectManager.init();
         return;
     }
 
-    // 旧版单工程逻辑（保留兼容）
     const savedData = localStorage.getItem('sfm_project_data');
     if (savedData) {
         try {
@@ -28,7 +26,6 @@ window.onload = async function () {
     createDefaultExample();
 };
 
-// ---------- 从数据恢复工程 ----------
 function restoreProjectData(data) {
     console.log('🔄 开始恢复工程数据...');
     if (window.clearAll) {
@@ -53,28 +50,27 @@ function restoreProjectData(data) {
     console.log(`📌 开始重建 ${data.nodes.length} 个节点...`);
     data.nodes.forEach(nodeData => {
         const node = createNode(nodeData.type, nodeData.x, nodeData.y, nodeData.ioScope);
-        node.id = String(nodeData.id);  // ★ 强制转为字符串
+        node.id = String(nodeData.id);
+        node.updatePortIds(); // ★ 新增
         for (let key in nodeData.settings) {
             node.settings[key] = nodeData.settings[key];
         }
         if (node.updateUI) node.updateUI();
-        idMap[nodeData.id] = node;
+        idMap[String(nodeData.id)] = node;
         console.log(`   ✅ 节点 ${nodeData.id} (${nodeData.type}) 已重建`);
     });
 
-    const maxId = data.nodes.reduce((max, n) => Math.max(max, n.id), 0);
+    const maxId = data.nodes.reduce((max, n) => Math.max(max, parseInt(n.id) || 0), 0);
     nodeIdCounter = maxId + 1;
-    console.log(`🔢 最大节点ID: ${maxId}, 新ID计数器: ${nodeIdCounter}`);
 
     console.log(`🔗 开始重建 ${data.connections.length} 条连接...`);
     data.connections.forEach(connData => {
-        // ★ 强制转换为字符串
         const fromNode = idMap[String(connData.fromNodeId)];
         const toNode = idMap[String(connData.toNodeId)];
         if (fromNode && toNode) {
-            const exists = connections.some(c => c.fromNodeId === fromNode.id && c.toNodeId === toNode.id);
+            const exists = connections.some(c => String(c.fromNodeId) === String(fromNode.id) && String(c.toNodeId) === String(toNode.id));
             if (!exists) {
-                connections.push({ fromNodeId: fromNode.id, toNodeId: toNode.id, fromPort: 'output', toPort: 'input' });
+                connections.push({ fromNodeId: String(fromNode.id), toNodeId: String(toNode.id), fromPort: 'output', toPort: 'input' });
                 if (fromNode.ports.output) fromNode.ports.output.classList.add('connected');
                 if (toNode.ports.input) toNode.ports.input.classList.add('connected');
                 console.log(`   ✅ 连接 ${fromNode.id} → ${toNode.id} 已重建`);
@@ -92,7 +88,6 @@ function restoreProjectData(data) {
     console.log('✅ 工程恢复完成');
 }
 
-// ---------- 创建默认示例 ----------
 function createDefaultExample() {
     console.log('🆕 创建默认示例...');
     const base = window.createNode('base', 60, 200);

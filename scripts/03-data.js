@@ -3,13 +3,23 @@
 // ============================================================
 let nodes = [];
 let connections = [];
-let nodeIdCounter = 1;   // 保留用于旧数据兼容
+let nodeIdCounter = 1;
 let selectedNodeId = null;
 let tempLine = null;
 
-function getNode(id) { return nodes.find(n => n.id === id); }
+function getNode(id) {
+    if (id === undefined || id === null || id === '') {
+        console.warn('getNode 收到无效 ID:', id);
+        return null;
+    }
+    const idStr = String(id);
+    const found = nodes.find(n => String(n.id) === idStr);
+    if (!found) {
+        console.warn('getNode 未找到节点:', idStr, '现有节点 ID:', nodes.map(n => n.id));
+    }
+    return found;
+}
 
-// 生成短 UUID（8位十六进制）
 function generateUUID() {
     return Math.random().toString(16).substring(2, 10);
 }

@@ -12,12 +12,10 @@ function deleteNode(id) {
     const idx = nodes.findIndex(n => n.id === id);
     if (idx === -1) return;
     const node = nodes[idx];
-    // 移除涉及该节点的所有连接
     connections = connections.filter(c => c.fromNodeId !== id && c.toNodeId !== id);
     if (node.element) node.element.remove();
     nodes.splice(idx, 1);
     if (selectedNodeId === id) selectedNodeId = null;
-    // 刷新端口状态
     refreshPortStatuses();
     updateConnections();
     generateCode();
@@ -47,7 +45,6 @@ function refreshPortStatuses() {
             node.ports.inputs.forEach(port => port.classList.remove('connected'));
         }
     });
-    // 根据 connections 重新标记
     connections.forEach(c => {
         const fromNode = getNode(c.fromNodeId);
         const toNode = getNode(c.toNodeId);

@@ -5,25 +5,21 @@
 (function () {
     'use strict';
 
-    // 如果多工程管理器已存在，则跳过本模块的初始化
     if (window.projectManager) {
         console.log('🔄 检测到多工程管理器，func14 跳过初始化');
-        // 但保留导出导入等函数可能会被覆盖，所以不覆盖
         return;
     }
     let isDirty = false;
     let autoSaveTimer = null;
 
-    // ---------- 保存到 localStorage ----------
     function saveToLocalStorage() {
         try {
-            // ★ 直接使用全局 nodes, connections
             const data = {
                 version: '1.0',
                 timestamp: new Date().toISOString(),
                 labels: window.labels || [],
                 nodes: (nodes || []).map(n => ({
-                    id: n.id,
+                    id: String(n.id),
                     type: n.type,
                     ioScope: n.ioScope,
                     x: n.x,
@@ -33,8 +29,8 @@
                     settings: n.settings
                 })),
                 connections: (connections || []).map(c => ({
-                    fromNodeId: c.fromNodeId,
-                    toNodeId: c.toNodeId
+                    fromNodeId: String(c.fromNodeId),
+                    toNodeId: String(c.toNodeId)
                 }))
             };
             localStorage.setItem('sfm_project_data', JSON.stringify(data));
@@ -42,7 +38,6 @@
             if (isDirty) {
                 isDirty = false;
                 updateSaveStatus();
-                console.log('✅ 状态已更新为“已保存”');
             }
         } catch (e) {
             console.warn('❌ 保存到 localStorage 失败:', e);
@@ -61,7 +56,6 @@
         if (!isDirty) {
             isDirty = true;
             updateSaveStatus();
-            console.log('🟡 状态变为“未保存”');
         }
         scheduleAutoSave();
     };
@@ -74,7 +68,6 @@
         isDirty = false;
         updateSaveStatus();
         saveToLocalStorage();
-        console.log('✅ 状态已清除（已保存）');
     };
 
     function updateSaveStatus() {
@@ -85,15 +78,13 @@
         }
     }
 
-    // ---------- 导出工程 ----------
     window.exportProject = function () {
-        console.log('📤 导出工程...');
         const projectData = {
             version: '1.0',
             timestamp: new Date().toISOString(),
             labels: window.labels || [],
             nodes: (nodes || []).map(n => ({
-                id: n.id,
+                id: String(n.id),
                 type: n.type,
                 ioScope: n.ioScope,
                 x: n.x,
@@ -103,8 +94,8 @@
                 settings: n.settings
             })),
             connections: (connections || []).map(c => ({
-                fromNodeId: c.fromNodeId,
-                toNodeId: c.toNodeId
+                fromNodeId: String(c.fromNodeId),
+                toNodeId: String(c.toNodeId)
             }))
         };
         const jsonStr = JSON.stringify(projectData, null, 2);
@@ -120,9 +111,7 @@
         window.clearDirty();
     };
 
-    // ---------- 导入工程 ----------
     window.importProject = function (file) {
-        console.log('📥 导入工程...');
         const reader = new FileReader();
         reader.onload = function (e) {
             try {
@@ -152,25 +141,26 @@
 
                 data.nodes.forEach(nodeData => {
                     const node = createNode(nodeData.type, nodeData.x, nodeData.y, nodeData.ioScope);
-                    node.id = nodeData.id;
+                    node.id = String(nodeData.id);
+
+                    node.updatePortIds(); // ★ 新增
                     for (let key in nodeData.settings) {
                         node.settings[key] = nodeData.settings[key];
                     }
                     if (node.updateUI) node.updateUI();
-                    idMap[nodeData.id] = node;
+                    idMap[String(nodeData.id)] = node;
                 });
 
-                const maxId = data.nodes.reduce((max, n) => Math.max(max, n.id), 0);
+                const maxId = data.nodes.reduce((max, n) => Math.max(max, parseInt(n.id) || 0), 0);
                 nodeIdCounter = maxId + 1;
 
                 data.connections.forEach(connData => {
-
-                    const fromNode = idMap[String(connData.fromNodeId)]; // ★
-                    const toNode = idMap[String(connData.toNodeId)];     // ★
+                    const fromNode = idMap[String(connData.fromNodeId)];
+                    const toNode = idMap[String(connData.toNodeId)];
                     if (fromNode && toNode) {
-                        const exists = connections.some(c => c.fromNodeId === fromNode.id && c.toNodeId === toNode.id);
+                        const exists = connections.some(c => String(c.fromNodeId) === String(fromNode.id) && String(c.toNodeId) === String(toNode.id));
                         if (!exists) {
-                            connections.push({ fromNodeId: fromNode.id, toNodeId: toNode.id, fromPort: 'output', toPort: 'input' });
+                            connections.push({ fromNodeId: String(fromNode.id), toNodeId: String(toNode.id), fromPort: 'output', toPort: 'input' });
                             if (fromNode.ports.output) fromNode.ports.output.classList.add('connected');
                             if (toNode.ports.input) toNode.ports.input.classList.add('connected');
                         }
@@ -191,15 +181,10 @@
         reader.readAsText(file);
     };
 
-    // ---------- 新建工程 ----------
     window.newProject = function () {
-        console.log('🗑️ 新建工程...');
-        if (isDirty) {
-            if (!confirm('当前工程有未保存的更改，确定要新建吗？')) return;
-        }
-        if (window.clearAll) {
-            window.clearAll();
-        } else {
+        if (isDirty && !confirm('当前工程有未保存的更改，确定要新建吗？')) return;
+        if (window.clearAll) window.clearAll();
+        else {
             nodes.forEach(n => n.element && n.element.remove());
             nodes = [];
             connections = [];
@@ -209,10 +194,8 @@
         if (window.updateConnections) window.updateConnections();
         if (window.generateCode) window.generateCode();
         window.clearDirty();
-        console.log('✅ 新建完成');
     };
 
-    // ---------- 关闭标签页提示 ----------
     window.addEventListener('beforeunload', function (e) {
         if (isDirty) {
             e.preventDefault();
@@ -221,13 +204,11 @@
         }
     });
 
-    // ---------- 绑定 UI 按钮 ----------
     function bindButtons() {
         const btnExport = document.getElementById('btn-export');
         const btnImport = document.getElementById('btn-import');
         const btnNew = document.getElementById('btn-new');
         if (!btnExport || !btnImport || !btnNew) {
-            console.warn('⚠️ 顶部按钮未找到，100ms后重试...');
             setTimeout(bindButtons, 100);
             return;
         }
@@ -251,7 +232,6 @@
         });
 
         updateSaveStatus();
-        console.log('✅ 顶部按钮绑定完成');
     }
 
     if (document.readyState === 'complete') {

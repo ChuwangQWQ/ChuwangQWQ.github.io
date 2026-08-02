@@ -41,16 +41,19 @@
             }
         } catch (e) { openProjects = []; }
 
+        // 如果 openProjects 为空但有工程，自动打开第一个
         if (openProjects.length === 0 && Object.keys(projects).length > 0) {
             const first = Object.keys(projects)[0];
             openProjects.push(first);
         }
+        // 过滤掉已被删除的工程
         openProjects = openProjects.filter(name => projects[name]);
     }
 
     function saveToStorage() {
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ projects: projects }));
+            const data = { projects: projects };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         } catch (e) { console.warn('保存工程数据失败', e); }
         try {
             localStorage.setItem(OPEN_KEY, JSON.stringify(openProjects));
@@ -59,9 +62,10 @@
 
     // ---------- 数据操作 ----------
     function collectCurrentData() {
+        // ★ 强制所有 ID 为字符串
         return {
             nodes: nodes.map(n => ({
-                id: n.id,
+                id: String(n.id),
                 type: n.type,
                 ioScope: n.ioScope,
                 x: n.x,
@@ -71,8 +75,8 @@
                 settings: n.settings
             })),
             connections: connections.map(c => ({
-                fromNodeId: c.fromNodeId,
-                toNodeId: c.toNodeId
+                fromNodeId: String(c.fromNodeId),
+                toNodeId: String(c.toNodeId)
             })),
             labels: window.labels || []
         };
@@ -80,7 +84,8 @@
 
     function saveCurrentToStorage() {
         if (!currentProjectName || !projects[currentProjectName]) return;
-        projects[currentProjectName] = collectCurrentData();
+        const data = collectCurrentData();
+        projects[currentProjectName] = data;
         saveToStorage();
         if (isDirty) {
             isDirty = false;
@@ -127,6 +132,7 @@
     function loadProjectToGlobals(name) {
         const data = projects[name];
         if (!data) {
+            // 工程不存在，清空编辑器
             if (window.clearAll) window.clearAll();
             else {
                 nodes.forEach(n => n.element && n.element.remove());
@@ -148,6 +154,7 @@
 
         window.labels = data.labels || ['输入源', '熔炉', '磨粉机', '输出箱'];
 
+        // ★ 使用字符串键的映射
         const idMap = {};
         const createNode = window.createNode || window._createNode;
         if (!createNode) {
@@ -158,25 +165,30 @@
         const nodesData = data.nodes || [];
         nodesData.forEach(nodeData => {
             const node = createNode(nodeData.type, nodeData.x, nodeData.y, nodeData.ioScope);
+            // ★ 强制覆盖为保存的 ID（字符串）
             node.id = String(nodeData.id);
+            node.updatePortIds(); // ★ 新增
             for (let key in nodeData.settings) {
                 node.settings[key] = nodeData.settings[key];
             }
             if (node.updateUI) node.updateUI();
-            idMap[nodeData.id] = node;
+            // ★ 键也强制为字符串
+            idMap[String(nodeData.id)] = node;
         });
 
-        const maxId = nodesData.reduce((max, n) => Math.max(max, n.id), 0);
+        // 更新计数器（虽然不再用于创建 ID，但保留以防兼容）
+        const maxId = nodesData.reduce((max, n) => Math.max(max, parseInt(n.id) || 0), 0);
         window.nodeIdCounter = maxId + 1;
 
         const conns = data.connections || [];
         conns.forEach(connData => {
+            // ★ 使用字符串查找
             const fromNode = idMap[String(connData.fromNodeId)];
             const toNode = idMap[String(connData.toNodeId)];
             if (fromNode && toNode) {
-                const exists = connections.some(c => c.fromNodeId === fromNode.id && c.toNodeId === toNode.id);
+                const exists = connections.some(c => String(c.fromNodeId) === String(fromNode.id) && String(c.toNodeId) === String(toNode.id));
                 if (!exists) {
-                    connections.push({ fromNodeId: fromNode.id, toNodeId: toNode.id, fromPort: 'output', toPort: 'input' });
+                    connections.push({ fromNodeId: String(fromNode.id), toNodeId: String(toNode.id), fromPort: 'output', toPort: 'input' });
                     if (fromNode.ports.output) fromNode.ports.output.classList.add('connected');
                     if (toNode.ports.input) toNode.ports.input.classList.add('connected');
                 }
@@ -222,8 +234,8 @@
         if (window.onViewChange) window.onViewChange('home');
     }
 
-    // ---------- 内部新建工程函数 ----------
-    function createNewProject(name) {
+    // ---------- 工程管理 ----------
+    function newProject(name) {
         if (!name) {
             let count = 1;
             while (projects['工程 ' + count]) count++;
@@ -231,7 +243,7 @@
         }
         if (projects[name]) {
             alert('工程名已存在');
-            return false;
+            return;
         }
         saveCurrentToStorage();
         projects[name] = {
@@ -256,16 +268,8 @@
         isHomePage = false;
         window._currentView = 'project';
         if (window.onViewChange) window.onViewChange('project');
-        return true;
     }
 
-    // 暴露给全局的新建工程
-    window.newProject = function () {
-        if (isDirty && !confirm('当前工程有未保存的更改，确定要新建吗？')) return;
-        createNewProject();
-    };
-
-    // ---------- 关闭工作区 ----------
     function closeProject(name) {
         if (!projects[name]) return;
         const idx = openProjects.indexOf(name);
@@ -291,7 +295,6 @@
         }
     }
 
-    // 永久删除工程
     window.deleteProject = function (name) {
         if (!projects[name]) return;
         if (!confirm(`确定永久删除工程 "${name}" 吗？\n此操作不可恢复！`)) return;
@@ -371,10 +374,11 @@
             return;
         }
         const data = collectCurrentData();
+        const projectName = currentProjectName;
         const exportData = {
             version: '1.0',
             timestamp: new Date().toISOString(),
-            projectName: currentProjectName,
+            projectName: projectName,
             labels: data.labels,
             nodes: data.nodes,
             connections: data.connections
@@ -384,7 +388,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `sfm_${currentProjectName}_${new Date().toISOString().slice(0, 10)}.json`;
+        a.download = `sfm_${projectName}_${new Date().toISOString().slice(0, 10)}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -410,8 +414,8 @@
                 }
                 saveCurrentToStorage();
                 projects[finalName] = {
-                    nodes: data.nodes,
-                    connections: data.connections,
+                    nodes: data.nodes.map(n => ({ ...n, id: String(n.id) })), // 确保字符串
+                    connections: data.connections.map(c => ({ fromNodeId: String(c.fromNodeId), toNodeId: String(c.toNodeId) })),
                     labels: data.labels
                 };
                 currentProjectName = finalName;
@@ -428,6 +432,11 @@
             }
         };
         reader.readAsText(file);
+    };
+
+    window.newProject = function () {
+        if (isDirty && !confirm('当前工程有未保存的更改，确定要新建吗？')) return;
+        newProject();
     };
 
     // ---------- 关闭标签页提示 ----------
@@ -498,7 +507,7 @@
         current: function () { return currentProjectName; },
         switchToProject: switchToProject,
         switchToHome: switchToHome,
-        newProject: window.newProject,
+        newProject: newProject,
         deleteProject: window.deleteProject,
         closeProject: closeProject,
         saveCurrent: saveCurrentToStorage,

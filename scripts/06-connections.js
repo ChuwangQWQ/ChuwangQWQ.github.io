@@ -1,5 +1,5 @@
 // ============================================================
-//  6. 连线系统（修复：节点 ID 类型不匹配）
+//  6. 连线系统（修复：节点 ID 强制字符串比较）
 // ============================================================
 const canvas = document.getElementById('connection-canvas');
 const ctx = canvas.getContext('2d');
@@ -13,7 +13,8 @@ function resizeCanvas() {
 }
 
 function getPortPosition(nodeId, portType, portIndex) {
-    const node = getNode(nodeId);
+    // 强制转换为字符串
+    const node = getNode(String(nodeId));
     if (!node) {
         console.warn('getPortPosition: 节点不存在', nodeId);
         return null;
@@ -32,7 +33,6 @@ function getPortPosition(nodeId, portType, portIndex) {
         return null;
     }
 
-    // 集线器特殊处理
     if (node.type === 'hub' && portType === 'input') {
         const ports = node.ports.inputs || [];
         const idx = (portIndex !== undefined && portIndex < ports.length) ? portIndex : 0;
@@ -107,7 +107,6 @@ function drawCurve(x1, y1, x2, y2, color, width, dash) {
     ctx.stroke();
 }
 
-// 双击删除连线
 document.addEventListener('dblclick', function (e) {
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
@@ -161,7 +160,7 @@ function startConnection(nodeId, portType, clientX, clientY) {
     const wrapRect = wrapper.getBoundingClientRect();
     const endX = clientX - wrapRect.left;
     const endY = clientY - wrapRect.top;
-    tempLine = { fromNodeId: nodeId, fromPort: 'output', endX, endY };
+    tempLine = { fromNodeId: String(nodeId), fromPort: 'output', endX, endY };
     connecting = true;
     updateConnections();
     const onMove = (e) => {
@@ -174,7 +173,8 @@ function startConnection(nodeId, portType, clientX, clientY) {
     const onUp = (e) => {
         const target = document.elementFromPoint(e.clientX, e.clientY);
         if (target && target.classList.contains('port') && target.dataset.portType === 'input') {
-            const toNodeId = target.dataset.nodeId; // ★ 直接使用字符串，不要 parseInt
+            const toNodeId = target.dataset.nodeId;
+            console.log('onUp: 目标端口节点ID', toNodeId, '类型', typeof toNodeId);
             finishConnection(toNodeId, 'input');
         }
         tempLine = null;
@@ -190,27 +190,31 @@ function startConnection(nodeId, portType, clientX, clientY) {
 function finishConnection(toNodeId, portType) {
     if (!tempLine) return false;
     const fromId = tempLine.fromNodeId;
-    if (fromId === toNodeId) return false;
-    // 检查是否已存在
-    const exists = connections.some(c => c.fromNodeId === fromId && c.toNodeId === toNodeId);
+    const fromStr = String(fromId);
+    const toStr = String(toNodeId);
+    console.log('finishConnection: from', fromStr, 'to', toStr);
+    if (fromStr === toStr) {
+        console.warn('finishConnection: 不能自连');
+        tempLine = null;
+        return false;
+    }
+    const exists = connections.some(c => String(c.fromNodeId) === fromStr && String(c.toNodeId) === toStr);
     if (!exists) {
-        // 检测目标端口索引
         const target = document.elementFromPoint(tempLine.endX, tempLine.endY);
         let portIndex = 0;
         if (target && target.classList.contains('port') && target.dataset.portType === 'input') {
             portIndex = parseInt(target.dataset.portIndex) || 0;
         }
-        const fromNode = getNode(fromId);
-        const toNode = getNode(toNodeId);
-        // ★ 确保 toNode 存在
+        const fromNode = getNode(fromStr);
+        const toNode = getNode(toStr);
         if (!toNode) {
-            console.warn('finishConnection: 目标节点不存在', toNodeId);
+            console.warn('finishConnection: 目标节点不存在', toStr);
             tempLine = null;
             return false;
         }
         const conn = {
-            fromNodeId: fromId,
-            toNodeId: toNodeId,
+            fromNodeId: fromStr,
+            toNodeId: toStr,
             fromPort: 'output',
             toPort: 'input',
             toPortIndex: portIndex,
@@ -233,5 +237,4 @@ function finishConnection(toNodeId, portType) {
     return true;
 }
 
-// 窗口大小变化时重绘
 window.addEventListener('resize', resizeCanvas);

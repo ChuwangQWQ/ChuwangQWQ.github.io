@@ -363,7 +363,6 @@ class Node {
 
     updateUI() {
         const s = this.settings;
-        // 集线器无设置项，无需更新
         if (this.type === 'hub') return;
         if (this._controlRefs.labelSelect) {
             this._controlRefs.labelSelect.value = s.label;
@@ -471,6 +470,21 @@ class Node {
         if (this._idBtn) this._idBtn.textContent = id;
         generateCode();
         if (window.markDirty) window.markDirty();
+    }
+
+    // ★ 新增方法：更新所有端口上的 nodeId
+    updatePortIds() {
+        if (this.ports.output) {
+            this.ports.output.dataset.nodeId = this.id;
+        }
+        if (this.ports.input) {
+            this.ports.input.dataset.nodeId = this.id;
+        }
+        if (this.ports.inputs) {
+            this.ports.inputs.forEach(port => {
+                port.dataset.nodeId = this.id;
+            });
+        }
     }
 
     // 集线器不需要重建端口（固定1个）
