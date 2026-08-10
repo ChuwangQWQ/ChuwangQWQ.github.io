@@ -1,5 +1,5 @@
 // ============================================================
-//  8. 物品选择器（滚动加载）
+//  8. 物品选择器（滚动加载 + 自定义物品卡片，直接使用搜索词）
 // ============================================================
 let itemData = {};
 let filteredItems = [];
@@ -7,6 +7,7 @@ let displayCount = 50;
 let currentDisplay = 0;
 let isLoading = false;
 let allLoaded = false;
+let currentSearchKeyword = '';
 
 const itemPicker = document.getElementById('itemPicker');
 const itemList = document.getElementById('itemList');
@@ -28,8 +29,29 @@ async function loadItemData() {
     }
 }
 
+// 解析关键词为 { namespace, id, fullId, displayName }
+function parseKeyword(keyword) {
+    if (!keyword || !keyword.trim()) return null;
+    keyword = keyword.trim();
+    let namespace, id, fullId, displayName;
+    if (keyword.includes(':')) {
+        const parts = keyword.split(':');
+        namespace = parts[0] || 'custom';
+        id = parts.slice(1).join(':') || 'unknown';
+        fullId = namespace + ':' + id;
+        displayName = id;
+    } else {
+        namespace = 'custom';
+        id = keyword;
+        fullId = 'custom:' + keyword;
+        displayName = "自定义的 "+keyword;
+    }
+    return { namespace, id, fullId, displayName };
+}
+
 function resetItemPicker() {
     const keyword = document.getElementById('searchInput').value.trim();
+    currentSearchKeyword = keyword;
     const items = Object.keys(itemData)
         .filter(key => !keyword || key.includes(keyword) || itemData[key].name.includes(keyword))
         .map(key => ({
@@ -38,6 +60,23 @@ function resetItemPicker() {
             src: itemData[key].src,
             mod: key.split(':')[0]
         }));
+    // ★ 在列表顶部插入自定义卡片（如果有关键词）
+    if (keyword) {
+        const parsed = parseKeyword(keyword);
+        if (parsed) {
+            items.unshift({
+                key: '__custom__',
+                name: parsed.displayName,
+                src: 'img/minecraft_barrier.png',
+                mod: parsed.namespace,
+                // 存储原始信息以便点击时使用
+                _customFullId: parsed.fullId,
+                _customDisplayName: parsed.displayName,
+                _customNamespace: parsed.namespace,
+                _customId: parsed.id
+            });
+        }
+    }
     filteredItems = items;
     currentDisplay = 0;
     allLoaded = false;
@@ -61,24 +100,7 @@ function loadMoreItems() {
     const batch = filteredItems.slice(currentDisplay, end);
     const fragment = document.createDocumentFragment();
     batch.forEach(item => {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-                    <img src="${item.src}" alt="" onerror="this.src='https://via.placeholder.com/40?text=?'">
-                    <div class="info">
-                        <h4>${item.name}</h4>
-                        <p>${item.key}</p>
-                        <div class="mod">${item.mod}</div>
-                    </div>
-                `;
-        card.onclick = () => {
-            const nodeId = window._currentNodeId;
-            const node = getNode(nodeId);
-            if (node) {
-                node.setResourceId(item.key);
-            }
-            itemPicker.classList.remove('active');
-        };
+        const card = createCard(item);
         fragment.appendChild(card);
     });
     itemList.appendChild(fragment);
@@ -93,14 +115,57 @@ function loadMoreItems() {
     }
 }
 
-itemList.addEventListener('scroll', function () {
-    if (this.scrollTop + this.clientHeight >= this.scrollHeight - 20) {
-        loadMoreItems();
+function createCard(item) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    // ★ 自定义卡片特殊处理
+    if (item.key === '__custom__') {
+        card.style.border = '2px dashed #ff9800';
+        card.style.background = '#fff8e1';
+        const fullId = item._customFullId || 'custom:unknown';
+        card.innerHTML = `
+            <img src="${item.src}" alt="" onerror="this.src='https://via.placeholder.com/40?text=自定义'">
+            <div class="info">
+                <h4 style="color:#e65100;">${item.name}</h4>
+                <p>${fullId}</p>
+                <div class="mod">${item.mod}</div>
+            </div>
+        `;
+        card.onclick = () => {
+            const nodeId = window._currentNodeId;
+            const node = getNode(nodeId);
+            if (node) {
+                // 使用自定义物品的完整 ID
+                node.setResourceId(fullId);
+            }
+            itemPicker.classList.remove('active');
+        };
+        return card;
     }
-});
+
+    // 普通物品卡片
+    card.innerHTML = `
+        <img src="${item.src}" alt="" onerror="this.src='https://via.placeholder.com/40?text=?'">
+        <div class="info">
+            <h4>${item.name}</h4>
+            <p>${item.key}</p>
+            <div class="mod">${item.mod}</div>
+        </div>
+    `;
+    card.onclick = () => {
+        const nodeId = window._currentNodeId;
+        const node = getNode(nodeId);
+        if (node) {
+            node.setResourceId(item.key);
+        }
+        itemPicker.classList.remove('active');
+    };
+    return card;
+}
 
 function filterItems(val) {
     const keyword = val.trim();
+    currentSearchKeyword = keyword;
     const items = Object.keys(itemData)
         .filter(key => !keyword || key.includes(keyword) || itemData[key].name.includes(keyword))
         .map(key => ({
@@ -109,6 +174,22 @@ function filterItems(val) {
             src: itemData[key].src,
             mod: key.split(':')[0]
         }));
+    // ★ 在列表顶部插入自定义卡片（如果有关键词）
+    if (keyword) {
+        const parsed = parseKeyword(keyword);
+        if (parsed) {
+            items.unshift({
+                key: '__custom__',
+                name: parsed.displayName,
+                src: 'img/minecraft_barrier.png',
+                mod: parsed.namespace,
+                _customFullId: parsed.fullId,
+                _customDisplayName: parsed.displayName,
+                _customNamespace: parsed.namespace,
+                _customId: parsed.id
+            });
+        }
+    }
     filteredItems = items;
     currentDisplay = 0;
     allLoaded = false;
