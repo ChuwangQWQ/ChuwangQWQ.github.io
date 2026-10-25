@@ -499,13 +499,143 @@ body {
 
 .cover-content {
     background: white;
-    width: 600px;
+    width: 860px;
     max-height: 80vh;
     border-radius: 12px;
     padding: 24px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.cover-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+/* Mod 筛选栏 */
+.mod-filter {
+    width: 200px;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+}
+
+.mod-filter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #e9ecef;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+    font-size: 13px;
+    color: #333;
+    flex-shrink: 0;
+}
+
+.mod-filter-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.mod-filter-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: 0.15s;
+}
+
+.mod-filter-actions button:hover {
+    background: #dee2e6;
+}
+
+.mod-filter-search {
+    padding: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+}
+
+.mod-filter-search input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.mod-filter-search input:focus {
+    border-color: #66afe9;
+    box-shadow: 0 0 6px rgba(102, 175, 233, 0.3);
+}
+
+.mod-filter-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.mod-filter-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.mod-filter-list::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.mod-filter-list::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
+.mod-checkbox-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 12px;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #333;
+    transition: background 0.1s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mod-checkbox-item:hover {
+    background: #e9ecef;
+}
+
+.mod-checkbox-item input[type="checkbox"] {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: #6c5ce7;
+}
+
+.mod-checkbox-item .mod-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mod-checkbox-item .mod-count {
+    margin-left: auto;
+    font-size: 10px;
+    color: #999;
+    flex-shrink: 0;
 }
 
 .cover-content .search input {
@@ -525,7 +655,6 @@ body {
 .cover-content .cards {
     flex: 1;
     overflow-y: auto;
-    margin-top: 16px;
 }
 
 .card {
@@ -578,6 +707,31 @@ body {
     padding: 8px;
     color: #888;
     font-size: 13px;
+}
+
+/* 数据库下载中提示 */
+.data-loading-hint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #888;
+    font-size: 15px;
+    gap: 16px;
+}
+
+.data-loading-spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid #e0e0e0;
+    border-top-color: #6c5ce7;
+    border-radius: 50%;
+    animation: data-loading-spin 0.8s linear infinite;
+}
+
+@keyframes data-loading-spin {
+    to { transform: rotate(360deg); }
 }
 
 /* 标签栏 */

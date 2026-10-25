@@ -86,7 +86,22 @@
                     <div class="search">
                         <input type="text" placeholder="搜索物品..." id="searchInput" oninput="filterItems(this.value)">
                     </div>
-                    <div class="cards" id="itemList"></div>
+                    <div class="cover-body">
+                        <div class="mod-filter" id="modFilter">
+                            <div class="mod-filter-header">
+                                <span>Mod 筛选</span>
+                                <div class="mod-filter-actions">
+                                    <button id="modSelectAll" title="全选">✅</button>
+                                    <button id="modSelectNone" title="全不选">❌</button>
+                                </div>
+                            </div>
+                            <div class="mod-filter-search">
+                                <input type="text" placeholder="搜索 Mod..." id="modSearchInput" oninput="filterModList(this.value)">
+                            </div>
+                            <div class="mod-filter-list" id="modFilterList"></div>
+                        </div>
+                        <div class="cards" id="itemList"></div>
+                    </div>
                 </div>
             </div>
         </div>

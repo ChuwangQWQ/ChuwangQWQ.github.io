@@ -3,7 +3,8 @@
 // ============================================================
 
 window.onload = async function () {
-    await loadItemData();
+    // ★ 后台预加载物品数据（不阻塞页面初始化）
+    loadItemData();
 
     if (window.projectManager && typeof window.projectManager.init === 'function') {
         window.projectManager.init();
